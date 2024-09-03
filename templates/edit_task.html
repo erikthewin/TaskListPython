@@ -1,0 +1,19 @@
+<!-- templates/edit_task.html -->
+{% extends 'base.html' %}
+
+{% block title %}Edit Task{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Edit Task</h1>
+    <form method="POST" action="{{ url_for('app_edit_task', task_id=task.id) }}">
+        <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" class="form-control" id="title" name="title" value="{{ task.title }}" required>
+        </div>
+        <div class="form-group">
+            <label for="due_date">Due Date</label>
+            <input type="date" class="form-control" id="due_date" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') }}" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+{% endblock %}

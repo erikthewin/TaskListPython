@@ -1,0 +1,29 @@
+<!-- templates/index.html -->
+{% extends 'base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Tasks</h1>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Due Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+            <tr>
+                <td>{{ task.title }}</td>
+                <td>{{ task.due_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    <a href="{{ url_for('app_edit_task', task_id=task.id) }}" class="btn btn-warning btn-sm">Edit</a>
+                    <a href="{{ url_for('app_delete_task', task_id=task.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?');">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - sqlite_data:/app/instance/  # Persist SQLite database file
+    environment:
+      FLASK_ENV: development
+      SECRET_KEY: ${SECRET_KEY}  # Replace with your actual secret key or use an environment variable
+    command: sh -c "python init_db.py && flask run --host=0.0.0.0"
+volumes:
+  sqlite_data:
