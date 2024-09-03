@@ -70,7 +70,7 @@ def app_edit_task(task_id):
         return redirect(url_for('index'))
     return render_template('edit_task.html', task=task)
 
-@app.route('/delete/<int:task_id>', methods=['POST'])
+@app.route('/delete/<int:task_id>', methods=['GET'])
 def app_delete_task(task_id):
     task = get_task_by_id(task_id)
     delete_task(task)
