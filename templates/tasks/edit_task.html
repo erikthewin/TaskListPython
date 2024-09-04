@@ -5,7 +5,7 @@
 
 {% block content %}
     <h1 class="mb-4">Edit Task</h1>
-    <form method="POST" action="{{ url_for('app_edit_task', task_id=task.id) }}">
+    <form method="POST" action="{{ url_for('app_edit_task', list_id=list.id, task_id=task.id) }}">
         <div class="form-group">
             <label for="title">Title</label>
             <input type="text" class="form-control" id="title" name="title" value="{{ task.title }}" required>

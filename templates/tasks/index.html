@@ -1,0 +1,35 @@
+<!-- templates/index.html -->
+{% extends 'base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Tasks for List: {{ list.title }}</h1>
+    <a class="btn btn-primary" href="{{ url_for('index') }}">Back to Lists</a>
+    <a class="btn btn-primary" href="{{ url_for('app_add_task', list_id=list.id) }}">Add Task</a>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+            <tr>
+                <td>{{ task.title }}</td>
+                <td>{{ task.due_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ task.status }}</td>
+                <td>{{ task.created_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    <a href="{{ url_for('app_edit_task', list_id=list.id, task_id=task.id) }}" class="btn btn-warning btn-sm">Edit</a>
+                    <a href="{{ url_for('app_delete_task', list_id=list.id, task_id=task.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?');">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

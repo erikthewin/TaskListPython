@@ -4,25 +4,38 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-    <h1 class="mb-4">Tasks</h1>
+    <h1 class="mb-4">Lists</h1>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('app_add_list') }}">Add List</a>
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="flash {{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
     <table class="table table-bordered">
         <thead>
             <tr>
                 <th>Title</th>
-                <th>Due Date</th>
+                <th>Description</th>
+                <th>Tasks</th>
                 <th>Created</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            {% for task in tasks %}
+            {% for list in lists %}
             <tr>
-                <td>{{ task.title }}</td>
-                <td>{{ task.due_date.strftime('%Y-%m-%d') }}</td>
-                <td>{{ task.created_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ list.title }}</td>
+                <td>{{ list.description }}</td>
+                <td>{{ list.task_count }}</td>
+                <td>{{ list.created_date.strftime('%Y-%m-%d') }}</td>
                 <td>
-                    <a href="{{ url_for('app_edit_task', task_id=task.id) }}" class="btn btn-warning btn-sm">Edit</a>
-                    <a href="{{ url_for('app_delete_task', task_id=task.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?');">Delete</a>
+                    <a href="{{ url_for('tasks_index', list_id=list.id) }}" class="btn btn-primary btn-sm">View Tasks</a>
+                    <a href="{{ url_for('app_edit_list', list_id=list.id) }}" class="btn btn-warning btn-sm">Edit</a>
+                    <a href="{{ url_for('app_delete_list', list_id=list.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?');">Delete</a>
                 </td>
             </tr>
             {% endfor %}
