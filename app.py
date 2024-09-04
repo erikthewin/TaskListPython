@@ -83,6 +83,11 @@ def update_task(task, data):
     db.session.commit()
     return task
 
+def complete_task(task):
+    task.status = True
+    db.session.commit()
+    return task
+
 def delete_task(task):
     db.session.delete(task)
     db.session.commit()
@@ -152,6 +157,16 @@ def app_edit_task(list_id, task_id):
         return redirect(url_for('tasks_index', list_id=list_id))
     return render_template('tasks/edit_task.html', task=task, list=list)
 
+@app.route('/list/<int:list_id>/tasks/<int:task_id>/complete', methods=['GET'])
+def app_complete_task(list_id, task_id):
+    task = get_task_by_id(task_id)
+    if (complete_task(task)):
+        flash(f'Task {task.title} completed', 'success')
+    else:
+        flash('Something went wrong', 'error')
+    return redirect(url_for('tasks_index', list_id=list_id))
+        
+
 @app.route('/list/<int:list_id>/tasks/delete/<int:task_id>', methods=['GET'])
 def app_delete_task(list_id, task_id):
     task = get_task_by_id(task_id)
@@ -163,39 +178,55 @@ def app_delete_task(list_id, task_id):
 def api_get_lists():
     lists = get_all_lists()
     lists_list = [{'id': list.id, 'title': list.title, 'description': list.description, 'created_date': list.created_date} for list in lists]
-    return jsonify(lists_list)
+    return jsonify(lists_list), 200
 
 @app.route('/api/lists/<int:list_id>', methods=['GET'])
 def api_get_list(list_id):
     list = get_list_by_id(list_id)
     list_data = {'id': list.id, 'title': list.title, 'description': list.description, 'created_date': list.created_date.strftime('%Y-%m-%d')}
-    return jsonify(list_data)
+    return jsonify(list_data), 200
+
+@app.route('/api/lists', methods=['POST'])
+def api_post_list():
+    data = request.get_json()
+    new_list = create_list(data)
+    return jsonify({'id': new_list.id, 'title': new_list.title, 'description': new_list.description, 'created_date': new_list.created_date.strftime('%Y-%m-%d')}), 201
+
+@app.route('/api/lists<int:list_id>', methods=['PUT'])
+def api_put_list(list_id):
+    list = get_list_by_id(list_id)
+    data = request.get_json()
+    updated_list = update_list(list, data)
+    return jsonify({'id': updated_list.id, 'title': updated_list.title, 'description': updated_list.description, 'created_date': updated_list.created_date.strftime('%Y-%m-%d')}), 200
 
 # REST API Endpoints for tasks
 @app.route('/api/tasks', methods=['GET'])
 def api_get_tasks():
     tasks = get_all_tasks()
-    tasks_list = [{'id': task.id, 'list_id': task.list_id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d')} for task in tasks]
-    return jsonify(tasks_list)
+    tasks_list = [{'id': task.id, 'list_id': task.list_id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'created_date': task.created_date.strftime('%Y-%m-%d')} for task in tasks]
+    return jsonify(tasks_list), 200
 
 @app.route('/api/tasks/<int:task_id>', methods=['GET'])
 def api_get_task(task_id):
     task = get_task_by_id(task_id)
-    task_data = {'id': task.id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d')}
-    return jsonify(task_data)
+    task_data = {'id': task.id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'created_date': task.created_date.strftime('%Y-%m-%d')}
+    if(task_data):
+        return jsonify(task_data), 200
+    else:
+        return 404
 
 @app.route('/api/tasks', methods=['POST'])
 def api_post_task():
     data = request.get_json()
     new_task = create_task(data)
-    return jsonify({'id': new_task.id, 'title': new_task.title, 'status': new_task.status, 'due_date': new_task.due_date.strftime('%Y-%m-%d')}), 201
+    return jsonify({'id': new_task.id, 'title': new_task.title, 'status': new_task.status, 'due_date': new_task.due_date.strftime('%Y-%m-%d'), 'created_date': new_task.created_date.strftime('%Y-%m-%d')}), 201
 
 @app.route('/api/tasks/<int:task_id>', methods=['PUT'])
 def api_put_task(task_id):
     task = get_task_by_id(task_id)
     data = request.get_json()
     updated_task = update_task(task, data)
-    return jsonify({'id': updated_task.id, 'title': updated_task.title, 'status': updated_task.status, 'due_date': updated_task.due_date.strftime('%Y-%m-%d')}), 200
+    return jsonify({'id': updated_task.id, 'title': updated_task.title, 'status': updated_task.status, 'due_date': updated_task.due_date.strftime('%Y-%m-%d'), 'created_date': updated_task.created_date.strftime('%Y-%m-%d')}), 200
 
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def api_delete_task(task_id):
