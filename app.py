@@ -192,12 +192,18 @@ def api_post_list():
     new_list = create_list(data)
     return jsonify({'id': new_list.id, 'title': new_list.title, 'description': new_list.description, 'created_date': new_list.created_date.strftime('%Y-%m-%d')}), 201
 
-@app.route('/api/lists<int:list_id>', methods=['PUT'])
+@app.route('/api/lists/<int:list_id>', methods=['PUT'])
 def api_put_list(list_id):
     list = get_list_by_id(list_id)
     data = request.get_json()
     updated_list = update_list(list, data)
     return jsonify({'id': updated_list.id, 'title': updated_list.title, 'description': updated_list.description, 'created_date': updated_list.created_date.strftime('%Y-%m-%d')}), 200
+
+@app.route('/api/lists/<int:list_id>', methods=['DELETE'])
+def api_delete_list(list_id):
+    list = get_list_by_id(list_id)
+    delete_list(list)
+    return jsonify(""), 204
 
 # REST API Endpoints for tasks
 @app.route('/api/tasks', methods=['GET'])
@@ -213,7 +219,7 @@ def api_get_task(task_id):
     if(task_data):
         return jsonify(task_data), 200
     else:
-        return 404
+        return abort(204)
 
 @app.route('/api/tasks', methods=['POST'])
 def api_post_task():
@@ -232,7 +238,7 @@ def api_put_task(task_id):
 def api_delete_task(task_id):
     task = get_task_by_id(task_id)
     delete_task(task)
-    return jsonify({'message': 'Task deleted'}), 200
+    return jsonify(""), 204
 
 if __name__ == '__main__':
     app.run(debug=True)
