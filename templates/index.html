@@ -10,6 +10,7 @@
             <tr>
                 <th>Title</th>
                 <th>Due Date</th>
+                <th>Created</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -18,6 +19,7 @@
             <tr>
                 <td>{{ task.title }}</td>
                 <td>{{ task.due_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ task.created_date.strftime('%Y-%m-%d') }}</td>
                 <td>
                     <a href="{{ url_for('app_edit_task', task_id=task.id) }}" class="btn btn-warning btn-sm">Edit</a>
                     <a href="{{ url_for('app_delete_task', task_id=task.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?');">Delete</a>

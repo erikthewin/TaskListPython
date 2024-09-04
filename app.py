@@ -24,7 +24,7 @@ def create_task(data):
     if not data or not 'title' in data or not 'due_date' in data:
         abort(400, description="Bad request, title and due_date are required")
     
-    new_task = Task(title=data['title'], due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date())
+    new_task = Task(title=data['title'], due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date(), created_date=datetime.strptime(datetime.today().strftime('%Y-%m-%d'), '%Y-%m-%d').date())
     db.session.add(new_task)
     db.session.commit()
     return new_task
