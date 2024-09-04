@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
+app.json.sort_keys = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
 db = SQLAlchemy(app)
@@ -157,41 +158,50 @@ def app_delete_task(list_id, task_id):
     delete_task(task)
     return redirect(url_for('tasks_index', list_id=list_id))
 
-# REST API Endpoints
+# REST API Endpoints for lists
+@app.route('/api/lists', methods=['GET'])
+def api_get_lists():
+    lists = get_all_lists()
+    lists_list = [{'id': list.id, 'title': list.title, 'description': list.description, 'created_date': list.created_date} for list in lists]
+    return jsonify(lists_list)
+
+@app.route('/api/lists/<int:list_id>', methods=['GET'])
+def api_get_list(list_id):
+    list = get_list_by_id(list_id)
+    list_data = {'id': list.id, 'title': list.title, 'description': list.description, 'created_date': list.created_date.strftime('%Y-%m-%d')}
+    return jsonify(list_data)
+
+# REST API Endpoints for tasks
 @app.route('/api/tasks', methods=['GET'])
 def api_get_tasks():
     tasks = get_all_tasks()
-    tasks_list = [{'id': task.id, 'title': task.title, 'due_date': task.due_date.strftime('%Y-%m-%d')} for task in tasks]
+    tasks_list = [{'id': task.id, 'list_id': task.list_id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d')} for task in tasks]
     return jsonify(tasks_list)
 
 @app.route('/api/tasks/<int:task_id>', methods=['GET'])
 def api_get_task(task_id):
     task = get_task_by_id(task_id)
-    task_data = {'id': task.id, 'title': task.title, 'due_date': task.due_date.strftime('%Y-%m-%d')}
+    task_data = {'id': task.id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d')}
     return jsonify(task_data)
 
 @app.route('/api/tasks', methods=['POST'])
 def api_post_task():
     data = request.get_json()
     new_task = create_task(data)
-    return jsonify({'id': new_task.id, 'title': new_task.title, 'due_date': new_task.due_date.strftime('%Y-%m-%d')}), 201
+    return jsonify({'id': new_task.id, 'title': new_task.title, 'status': new_task.status, 'due_date': new_task.due_date.strftime('%Y-%m-%d')}), 201
 
 @app.route('/api/tasks/<int:task_id>', methods=['PUT'])
 def api_put_task(task_id):
     task = get_task_by_id(task_id)
     data = request.get_json()
     updated_task = update_task(task, data)
-    return jsonify({'id': updated_task.id, 'title': updated_task.title, 'due_date': updated_task.due_date.strftime('%Y-%m-%d')}), 200
+    return jsonify({'id': updated_task.id, 'title': updated_task.title, 'status': updated_task.status, 'due_date': updated_task.due_date.strftime('%Y-%m-%d')}), 200
 
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def api_delete_task(task_id):
     task = get_task_by_id(task_id)
     delete_task(task)
     return jsonify({'message': 'Task deleted'}), 200
-
-@app.route('/api/backup', methods=['GET'])
-def api_backup():
-    task = get_all_tasks()
 
 if __name__ == '__main__':
     app.run(debug=True)
