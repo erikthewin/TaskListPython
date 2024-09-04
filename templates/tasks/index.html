@@ -7,6 +7,15 @@
     <h1 class="mb-4">Tasks for {{ list.title }}</h1>
     <a class="btn btn-primary" href="{{ url_for('index') }}">Back to Lists</a>
     <a class="btn btn-primary" href="{{ url_for('app_add_task', list_id=list.id) }}">Add Task</a>
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="flash {{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
     <table class="table table-bordered">
         <thead>
             <tr>
@@ -23,7 +32,11 @@
                 <td>{{ task.title }}</td>
                 <td>{{ task.due_date.strftime('%Y-%m-%d') }}</td>
                 <td>
-                    <a href="{{ url_for('app_complete_task', list_id=list.id, task_id=task.id) }}", class="btn btn-info btn-sm" onclick="return confirm('Are you sure?');">{{ task.status }}</a>
+                    {% if task.status == True %}
+                        <a href="{{ url_for('app_complete_task', list_id=list.id, task_id=task.id) }}" class="bi-check2-square" onclick="return confirm('Are you sure?');"></a>
+                    {% else %}
+                        <a href="{{ url_for('app_complete_task', list_id=list.id, task_id=task.id) }}" class="bi-check2" onclick="return confirm('Are you sure?');"></a>
+                    {% endif %}
                 </td>
                 <td>{{ task.created_date.strftime('%Y-%m-%d') }}</td>
                 <td>

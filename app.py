@@ -4,7 +4,7 @@ from forms import TaskForm, ListForm
 from datetime import datetime
 import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='assets')
 app.json.sort_keys = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
