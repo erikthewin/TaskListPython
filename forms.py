@@ -7,6 +7,7 @@ class TaskForm(FlaskForm):
     due_date = DateField('Due Date (YYYY-MM-DD)', format='%Y-%m-%d', validators=[DataRequired()])
     submit = SubmitField('Save')
 
-class TaskList(FlaskForm):
+class ListForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired()])
+    description = StringField('Decsription', validators=[DataRequired()])
     submit = SubmitField('Save')

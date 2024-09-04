@@ -1,0 +1,19 @@
+<!-- templates/add_task.html -->
+{% extends 'base.html' %}
+
+{% block title %}Add List{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Add List</h1>
+    <form method="POST" action="{{ url_for('app_add_list') }}">
+        <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" class="form-control" id="title" name="title" required>
+        </div>
+        <div class="form-group">
+            <label for="description">Title</label>
+            <input type="text" class="form-control" id="description" name="description" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Add List</button>
+    </form>
+{% endblock %}
