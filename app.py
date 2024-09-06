@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__, static_folder='assets')
 app.json.sort_keys = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key') # Secret key for flash sessions and other stuff
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
 db = SQLAlchemy(app)
 
@@ -238,6 +238,76 @@ def api_delete_task(task_id):
     task = get_task_by_id(task_id)
     delete_task(task)
     return jsonify(""), 204
+
+@app.route('/api/export', methods=['GET'])
+def export_data():
+    lists = List.query.all()
+    data = []
+    
+    for list in lists:
+        tasks = Task.query.filter_by(list_id=list.id).all()
+        task_data = [{'id': task.id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'created_date': task.created_date.strftime('%Y-%m-%d')} for task in tasks]
+        
+        list_data = {
+            'id': list.id,
+            'title': list.title,
+            'description': list.description,
+            'created_date': list.created_date.strftime('%Y-%m-%d'),
+            'tasks': task_data
+        }
+        data.append(list_data)
+    
+    return jsonify(data), 200
+
+@app.route('/api/import', methods=['POST'])
+def import_data():
+    data = request.get_json()
+
+    if not data or not isinstance(data, list):
+        abort(400, description="Bad request, expected a list of lists with tasks.")
+
+    list_insert_count = 0
+    task_insert_count = 0
+
+    for list_data in data:
+        # Check if the list already exists
+        list_obj = List.query.filter_by(id=list_data.get('id')).first()
+        if not list_obj:
+            # Create a new list
+            list_obj = List(
+                id=list_data['id'],
+                title=list_data['title'],
+                description=list_data['description'],
+                created_date=datetime.strptime(list_data['created_date'], '%Y-%m-%d').date()
+            )
+            db.session.add(list_obj)
+            list_insert_count += 1  # Increment list insert counter
+
+        db.session.commit()
+
+        # Process tasks within the list
+        for task_data in list_data['tasks']:
+            task_obj = Task.query.filter_by(id=task_data.get('id')).first()
+            if not task_obj:
+                # Create a new task
+                task_obj = Task(
+                    id=task_data['id'],
+                    title=task_data['title'],
+                    status=task_data['status'],
+                    due_date=datetime.strptime(task_data['due_date'], '%Y-%m-%d').date(),
+                    created_date=datetime.strptime(task_data['created_date'], '%Y-%m-%d').date(),
+                    list_id=list_obj.id
+                )
+                db.session.add(task_obj)
+                task_insert_count += 1  # Increment task insert counter
+
+            db.session.commit()
+
+    return jsonify({
+        "message": "Data imported successfully!",
+        "lists_inserted": list_insert_count,
+        "tasks_inserted": task_insert_count
+    }), 201
 
 if __name__ == '__main__':
     app.run(debug=True)
