@@ -4,7 +4,7 @@
 {% block title %}Add Task{% endblock %}
 
 {% block content %}
-    <h1 class="mb-4">Add Task</h1>
+    <h1 class="mb-4">Add Task for {{ list.title }}</h1>
     <form method="POST" action="{{ url_for('app_add_task', list_id=list.id) }}">
         <div class="form-group">
             <label for="title">Title</label>

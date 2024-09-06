@@ -1,0 +1,79 @@
+<!-- templates/index.html -->
+{% extends 'base.html' %}
+
+{% block title %}Import/Export Data{% endblock %}
+
+{% block content %}
+    <h1>Import/Export Data</h1>
+
+
+    <div class="container">
+        <div class="row">
+    <!-- Import Section -->
+    <section class="col-sm">
+        <h2>Import Data</h2>
+        <form id="importForm" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">File</label>
+                <input type="file" id="jsonFileInput" accept=".json">
+            </div>
+            <button type="button" onclick="importData()" class="bi-layer-forward">  Import JSON</button>
+        </form>
+        <p id="importStatus"></p>
+    </section>
+
+    <!-- Export Section -->
+    <section class="col-sm">
+        <h2>Export Data</h2>
+        <button id="exportBtn" onclick="exportData()" class="bi-layer-backward">  Export JSON</button>
+    </section>
+    </div>
+    </div>
+
+    <script>
+        // Function to handle data import
+        async function importData() {
+            const inputFile = document.getElementById('jsonFileInput').files[0];
+            const statusElement = document.getElementById('importStatus');
+
+            if (!inputFile) {
+                statusElement.textContent = "Please select a JSON file to import.";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', inputFile);
+
+            try {
+                const response = await fetch('/api/import', {
+                    method: 'POST',
+                    body: await inputFile.text(),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    statusElement.textContent = `Import successful! ${result.lists_inserted} lists and ${result.tasks_inserted} tasks were inserted.`;
+                } else {
+                    statusElement.textContent = `Import failed: ${response.statusText}`;
+                }
+            } catch (error) {
+                statusElement.textContent = `An error occurred: ${error.message}`;
+            }
+        }
+
+        // Function to handle data export
+        async function exportData() {
+            const response = await fetch('/api/export');
+            const data = await response.json();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'backup_data.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+{% endblock %}
