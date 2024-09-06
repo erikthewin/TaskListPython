@@ -1,6 +1,5 @@
 from flask import Flask, render_template, redirect, url_for, request, jsonify, abort, flash
 from flask_sqlalchemy import SQLAlchemy
-from forms import TaskForm, ListForm
 from datetime import datetime
 import os
 
