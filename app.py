@@ -1,3 +1,4 @@
+import logging
 from flask import Flask, render_template, redirect, url_for, request, jsonify, abort, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -9,19 +10,55 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key') # Secret key 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
 db = SQLAlchemy(app)
 
+ENABLE_FILE_LOGGING = os.environ.get('ENABLE_FILE_LOGGING')
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO') # logging.INFO or logging.DEBUG
+
+# Convert LOG_LEVEL string to the corresponding logging level constant
+try:
+    log_level_value = getattr(logging, LOG_LEVEL.upper())
+except AttributeError:
+    raise ValueError(f"Unknown logging level: {LOG_LEVEL}")
+
+LOGGING_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=log_level_value, format=LOGGING_FORMAT)
+
+logger = logging.getLogger('task_manager_app')
+
+if ENABLE_FILE_LOGGING:
+    file_handler = logging.FileHandler('app.log')
+    file_handler.setLevel(log_level_value)
+    file_handler.setFormatter(logging.Formatter(LOGGING_FORMAT))
+    logger.addHandler(file_handler)
+    logger.info("File logging is enabled with level: %s", logging.getLevelName(log_level_value))
+
 from models import Task, List
 
 def get_all_lists():
-    return List.query.all()
+    try: 
+        logger.debug("Fetching all lists")
+        return List.query.all()
+    except Exception as e:
+        logger.error(f"Error fetching lists: {str(e)}")
+        abort(500, description="Internal server error")
 
 def get_list_by_id(list_id):
-    list = List.query.get(list_id)
-    if not list:
-        abort(404)
-    return list
+    if not list_id:
+        logger.warning("Bad request: missing parameter list_id")
+        abort(400, description="Bad request: list_id must be provided for this function")
+    try:
+        list = List.query.get(list_id)
+        if not list:
+            logger.info(f"{list_id} not found")
+            abort(404)
+        logger.debug(f"Fetching {list_id}")
+        return list
+    except Exception as e:
+        logger.error(f"Error fetching {list_id} from database: {str(e)}")
+        abort(500, description=f"Internal server error")
 
 def create_list(data):
     if not data or not 'title' in data or not 'description' in data:
+        logger.warning("Bad request: Missing title or description")
         abort(400, description="Bad request, title and description are required")
     new_list = List(title=data['title'], description=data['description'], created_date=datetime.strptime(datetime.today().strftime('%Y-%m-%d'), '%Y-%m-%d').date())
     db.session.add(new_list)
