@@ -6,17 +6,17 @@ import os
 
 app = Flask(__name__, static_folder='assets')
 app.json.sort_keys = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key') # Secret key for flash sessions and other stuff
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key')  # Secret key for flash sessions
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
 db = SQLAlchemy(app)
 
 ENABLE_FILE_LOGGING = os.environ.get('ENABLE_FILE_LOGGING')
-LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO') # Default to info
-IS_LOGGING_DEBUG = True if LOG_LEVEL == 'debug' else False # used for setting the debug true or false in app.run(debug=IS_LOGGING_DEBUG)
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')  # Default to info
+IS_LOGGING_DEBUG = True if LOG_LEVEL.lower() == 'debug' else False
 
 # Convert LOG_LEVEL string to the corresponding logging level constant
 try:
-    log_level_value = getattr(logging, LOG_LEVEL.upper())
+    log_level_value = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
 except AttributeError:
     raise ValueError(f"Unknown logging level: {LOG_LEVEL}")
 
@@ -34,10 +34,12 @@ if ENABLE_FILE_LOGGING:
 
 from models import Task, List
 
+# Error handling and logging for list functions
+
 def get_all_lists():
-    try: 
+    try:
         data = List.query.all()
-        logger.debug("Getting all lists")
+        logger.debug("Fetched all lists")
         return data
     except Exception as e:
         logger.error(f"Error getting lists: {str(e)}")
@@ -45,109 +47,124 @@ def get_all_lists():
 
 def get_list_by_id(list_id):
     if not list_id:
-        logger.warning("Bad request: missing parameter list_id")
-        abort(400, description="Bad request: list_id must be provided for this function")
+        logger.warning("Bad request: missing list_id")
+        abort(400, description="Bad request: list_id is required")
     try:
-        list = List.query.get(list_id)
-        if not list:
-            logger.info(f"{list_id} not found")
+        list_item = db.session.query(List).filter_by(id=list_id).first()
+        if list_item is None:
+            logger.warning(f"List {list_id} not found")
             abort(404)
-        logger.debug(f"Fetched list with id: {list_id}, title: {list.title}, and description: {list.description}")
-        return list
+        logger.debug(f"Fetched list {list_item.id} with title: {list_item.title}")
+        return list_item
     except Exception as e:
-        logger.error(f"Error getting {list_id} from database: {str(e)}")
-        abort(500, description=f"Internal server error")
+        logger.error(f"Error retrieving list {list_id}: {str(e)}")
+        abort(500, description="Internal server error")
 
 def create_list(data):
-    if not data or not 'title' in data or not 'description' in data:
+    if not data or 'title' not in data or 'description' not in data:
         logger.warning("Bad request: Missing title or description")
         abort(400, description="Bad request, title and description are required")
     try:
-        new_list = List(title=data['title'], description=data['description'], created_date=datetime.strptime(datetime.today().strftime('%Y-%m-%d'), '%Y-%m-%d').date())
+        new_list = List(
+            title=data['title'], 
+            description=data['description'], 
+            created_date=datetime.strptime(datetime.today().strftime('%Y-%m-%d'), '%Y-%m-%d').date()
+        )
         db.session.add(new_list)
         db.session.commit()
-        logger.debug(f"Created new list with title: {new_list.title}, and description: {new_list.description}")
+        logger.debug(f"Created list with title: {new_list.title}")
         return new_list
     except Exception as e:
-        logger.error(f"Error committing to database: {str(e)}")
-        abort(500, description=f"Internal server error")
-
-def update_list(list, data):
-    if not data:
-        logger.warning(f"Bad request: no data")
-        abort(400, description="Bad request, no data")
-    try:
-        list.title = data.get('title', list.title)
-        if 'description' in data:
-            list.description = data.get('description', list.description)
-        db.session.commit()
-        logger.debug(f"Updated {list.id} with title: {list.title}, and description: {list.description}")
-        return list
-    except Exception as e:
-        logger.error(f"Internal server error: {str(e)}")
+        logger.error(f"Error creating list: {str(e)}")
         abort(500, description="Internal server error")
 
-def delete_list(list):
-    if not list:
-        logger.warning(f"Bad request: no data")
-        abort(400, description="Bad request, no data")
+def update_list(list_item, data):
+    if not data:
+        logger.warning("Bad request: no data provided")
+        abort(400, description="Bad request, no data provided")
     try:
-        db.session.delete(list)
+        list_item.title = data.get('title', list_item.title)
+        list_item.description = data.get('description', list_item.description)
         db.session.commit()
-        logger.debug(f"{list.id} was deleted")
+        logger.debug(f"Updated list {list_item.id}")
+        return list_item
+    except Exception as e:
+        logger.error(f"Error updating list {list_item.id}: {str(e)}")
+        abort(500, description="Internal server error")
+
+def delete_list(list_item):
+    if not list_item:
+        logger.warning("Bad request: list does not exist")
+        abort(400, description="Bad request: list does not exist")
+    try:
+        db.session.delete(list_item)
+        db.session.commit()
+        logger.debug(f"Deleted list {list_item.id}")
         return True
     except Exception as e:
-        logger.error(f"Error deleting {list.id} from database, {str(e)}")
-        return False
+        logger.error(f"Error deleting list {list_item.id}: {str(e)}")
+        abort(500, description="Internal server error")
+
+
+# Error handling and logging for task functions
 
 def get_all_tasks():
-    try: 
-        data = Task.query.all()
+    try:
+        tasks = Task.query.all()
         logger.debug("Fetched all tasks")
-        return data
+        return tasks
     except Exception as e:
         logger.error(f"Error getting tasks: {str(e)}")
         abort(500, description="Internal server error")
 
 def get_task_by_id(task_id):
     if not task_id:
-        logger.warning("Bad request: missing parameter task_id")
-        abort(400, description="Bad request: task_id must be provided for this function")
+        logger.warning("Bad request: missing task_id")
+        abort(400, description="Bad request: task_id is required")
     try:
         task = Task.query.get(task_id)
         if not task:
-            logger.info(f"{task_id} not found")
+            logger.info(f"Task {task_id} not found")
             abort(404)
         return task
     except Exception as e:
-        logger.error(f"Error getting {task_id} from database: {str(e)}")
+        logger.error(f"Error retrieving task {task_id}: {str(e)}")
         abort(500, description="Internal server error")
 
 def create_task(data):
     if not data or not 'title' in data or not 'due_date' in data or not 'list_id' in data:
+        logger.warning("Bad request: Missing required fields")
         abort(400, description="Bad request, title, due_date, and list_id are required")
-
-    new_task = Task(
-        title=data['title'],
-        due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date(),
-        created_date=datetime.today().date(),
-        list_id=data['list_id'],
-        status=False
-    )
-    db.session.add(new_task)
-    db.session.commit()
-    return new_task
+    try:
+        new_task = Task(
+            title=data['title'],
+            due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date(),
+            created_date=datetime.today().date(),
+            list_id=data['list_id'],
+            status=False
+        )
+        db.session.add(new_task)
+        db.session.commit()
+        logger.debug(f"Created task with title: {new_task.title}")
+        return new_task
+    except Exception as e:
+        logger.error(f"Error creating task: {str(e)}")
+        abort(500, description="Internal server error")
 
 def update_task(task, data):
     if not data:
-        abort(400, description="Bad request, data is required")
-
-    task.title = data.get('title', task.title)
-    if 'due_date' in data:
-        task.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date()
-
-    db.session.commit()
-    return task
+        logger.warning("Bad request: no data provided")
+        abort(400, description="Bad request, no data provided")
+    try:
+        task.title = data.get('title', task.title)
+        if 'due_date' in data:
+            task.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date()
+        db.session.commit()
+        logger.debug(f"Updated task {task.id}")
+        return task
+    except Exception as e:
+        logger.error(f"Error updating task {task.id}: {str(e)}")
+        abort(500, description="Internal server error")
 
 def complete_task(task):
     task.status = True
@@ -155,9 +172,17 @@ def complete_task(task):
     return task
 
 def delete_task(task):
-    db.session.delete(task)
-    db.session.commit()
-    return True
+    if not task:
+        logger.warning("Bad request: task does not exist")
+        abort(400, description="Bad request: task does not exist")
+    try:
+        db.session.delete(task)
+        db.session.commit()
+        logger.debug(f"Deleted task {task.id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting task {task.id}: {str(e)}")
+        abort(500, description="Internal server error")
 
 def import_data_from_json(data):
     if not data or not isinstance(data, list):
@@ -373,6 +398,8 @@ def api_delete_task(task_id):
     task = get_task_by_id(task_id)
     delete_task(task)
     return jsonify(""), 204
+
+# REST API Endpoints for import & export
 
 @app.route('/api/import', methods=['POST'])
 def api_import_data():
