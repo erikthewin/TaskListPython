@@ -1,5 +1,6 @@
 import logging
 from flask import Flask, render_template, redirect, url_for, request, jsonify, abort, flash
+from werkzeug.exceptions import HTTPException, NotFound, BadRequest
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
@@ -34,107 +35,112 @@ if ENABLE_FILE_LOGGING:
 
 from models import Task, List
 
-# Error handling and logging for list functions
+# List functions
 
 def get_all_lists():
     try:
         data = List.query.all()
         logger.debug("Fetched all lists")
-        return data
+        return data, 200
     except Exception as e:
         logger.error(f"Error getting lists: {str(e)}")
-        abort(500, description="Internal server error")
+        return None, 500
 
 def get_list_by_id(list_id):
     if not list_id:
         logger.warning("Bad request: missing list_id")
-        abort(400, description="Bad request: list_id is required")
+        return None, 400
+
     try:
-        list_item = db.session.query(List).filter_by(id=list_id).first()
-        if list_item is None:
-            logger.warning(f"List {list_id} not found")
-            abort(404)
-        logger.debug(f"Fetched list {list_item.id} with title: {list_item.title}")
-        return list_item
+        list = List.query.filter_by(id=list_id).first()
+        if list is None:
+            logger.info(f"List with id: {list_id} not found")
+            return None, 404
+        logger.debug(f"Fetched list {list.id} with title: {list.title}")
+        return list, 200
     except Exception as e:
         logger.error(f"Error retrieving list {list_id}: {str(e)}")
-        abort(500, description="Internal server error")
+        return None, 500
 
 def create_list(data):
     if not data or 'title' not in data or 'description' not in data:
         logger.warning("Bad request: Missing title or description")
-        abort(400, description="Bad request, title and description are required")
+        return None, 400
+
     try:
         new_list = List(
-            title=data['title'], 
-            description=data['description'], 
+            title=data['title'],
+            description=data['description'],
             created_date=datetime.strptime(datetime.today().strftime('%Y-%m-%d'), '%Y-%m-%d').date()
         )
         db.session.add(new_list)
         db.session.commit()
         logger.debug(f"Created list with title: {new_list.title}")
-        return new_list
+        return new_list, 201
     except Exception as e:
         logger.error(f"Error creating list: {str(e)}")
-        abort(500, description="Internal server error")
+        return None, 500
 
 def update_list(list_item, data):
     if not data:
         logger.warning("Bad request: no data provided")
-        abort(400, description="Bad request, no data provided")
+        return None, 400
+
     try:
         list_item.title = data.get('title', list_item.title)
         list_item.description = data.get('description', list_item.description)
         db.session.commit()
         logger.debug(f"Updated list {list_item.id}")
-        return list_item
+        return list_item, 200
     except Exception as e:
         logger.error(f"Error updating list {list_item.id}: {str(e)}")
-        abort(500, description="Internal server error")
+        return None, 500
 
 def delete_list(list_item):
     if not list_item:
         logger.warning("Bad request: list does not exist")
-        abort(400, description="Bad request: list does not exist")
+        return None, 400
+
     try:
         db.session.delete(list_item)
         db.session.commit()
         logger.debug(f"Deleted list {list_item.id}")
-        return True
+        return True, 200
     except Exception as e:
         logger.error(f"Error deleting list {list_item.id}: {str(e)}")
-        abort(500, description="Internal server error")
+        return None, 500
 
-
-# Error handling and logging for task functions
+# Task functions
 
 def get_all_tasks():
     try:
         tasks = Task.query.all()
         logger.debug("Fetched all tasks")
-        return tasks
+        return tasks, 200
     except Exception as e:
         logger.error(f"Error getting tasks: {str(e)}")
-        abort(500, description="Internal server error")
+        return None, 500
 
 def get_task_by_id(task_id):
     if not task_id:
         logger.warning("Bad request: missing task_id")
-        abort(400, description="Bad request: task_id is required")
+        return None, 400
+
     try:
-        task = Task.query.get(task_id)
-        if not task:
+        task = Task.query.filter_by(id=task_id).first()
+        if task is None:
             logger.info(f"Task {task_id} not found")
-            abort(404)
-        return task
+            return None, 404
+        return task, 200
     except Exception as e:
         logger.error(f"Error retrieving task {task_id}: {str(e)}")
-        abort(500, description="Internal server error")
+        return None, 500
 
 def create_task(data):
-    if not data or not 'title' in data or not 'due_date' in data or not 'list_id' in data:
+    if not data or 'title' not in data or 'due_date' not in data or 'list_id' not in data:
         logger.warning("Bad request: Missing required fields")
-        abort(400, description="Bad request, title, due_date, and list_id are required")
+        return None, 400
+
     try:
         new_task = Task(
             title=data['title'],
@@ -146,275 +152,424 @@ def create_task(data):
         db.session.add(new_task)
         db.session.commit()
         logger.debug(f"Created task with title: {new_task.title}")
-        return new_task
+        return new_task, 201
     except Exception as e:
         logger.error(f"Error creating task: {str(e)}")
-        abort(500, description="Internal server error")
+        return None, 500
 
 def update_task(task, data):
     if not data:
         logger.warning("Bad request: no data provided")
-        abort(400, description="Bad request, no data provided")
+        return None, 400
+
     try:
         task.title = data.get('title', task.title)
         if 'due_date' in data:
             task.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date()
         db.session.commit()
         logger.debug(f"Updated task {task.id}")
-        return task
+        return task, 200
     except Exception as e:
         logger.error(f"Error updating task {task.id}: {str(e)}")
-        abort(500, description="Internal server error")
+        return None, 500
 
 def complete_task(task):
-    task.status = True
-    db.session.commit()
-    return task
+    try:
+        task.status = True
+        db.session.commit()
+        return task, 200
+    except Exception as e:
+        logger.error(f"Error completing task {task.id}: {str(e)}")
+        return None, 500
 
 def delete_task(task):
     if not task:
         logger.warning("Bad request: task does not exist")
-        abort(400, description="Bad request: task does not exist")
+        return None, 400
+
     try:
         db.session.delete(task)
         db.session.commit()
         logger.debug(f"Deleted task {task.id}")
-        return True
+        return True, 200
     except Exception as e:
         logger.error(f"Error deleting task {task.id}: {str(e)}")
-        abort(500, description="Internal server error")
+        return None, 500
+    
+# Import export functions
 
 def import_data_from_json(data):
     if not data or not isinstance(data, list):
-        abort(400, description="Bad request, expected a list of lists with tasks.")
+        return None, 400
 
     list_insert_count = 0
     task_insert_count = 0
 
-    for list_data in data:
-        # Check if the list already exists
-        list_obj = List.query.filter_by(id=list_data.get('id')).first()
-        if not list_obj:
-            # Create a new list
-            list_obj = List(
-                id=list_data['id'],
-                title=list_data['title'],
-                description=list_data['description'],
-                created_date=datetime.strptime(list_data['created_date'], '%Y-%m-%d').date()
-            )
-            db.session.add(list_obj)
-            list_insert_count += 1  # Increment list insert counter
-
-        db.session.commit()
-
-        # Process tasks within the list
-        for task_data in list_data['tasks']:
-            task_obj = Task.query.filter_by(id=task_data.get('id')).first()
-            if not task_obj:
-                # Create a new task
-                task_obj = Task(
-                    id=task_data['id'],
-                    title=task_data['title'],
-                    status=task_data['status'],
-                    due_date=datetime.strptime(task_data['due_date'], '%Y-%m-%d').date(),
-                    created_date=datetime.strptime(task_data['created_date'], '%Y-%m-%d').date(),
-                    list_id=list_obj.id
+    try:
+        for list_data in data:
+            list_obj = List.query.filter_by(id=list_data.get('id')).first()
+            if not list_obj:
+                list_obj = List(
+                    id=list_data['id'],
+                    title=list_data['title'],
+                    description=list_data['description'],
+                    created_date=datetime.strptime(list_data['created_date'], '%Y-%m-%d').date()
                 )
-                db.session.add(task_obj)
-                task_insert_count += 1  # Increment task insert counter
+                db.session.add(list_obj)
+                list_insert_count += 1
 
             db.session.commit()
 
-    return {"lists_inserted": list_insert_count, "tasks_inserted": task_insert_count}
+            for task_data in list_data['tasks']:
+                task_obj = Task.query.filter_by(id=task_data.get('id')).first()
+                if not task_obj:
+                    task_obj = Task(
+                        id=task_data['id'],
+                        title=task_data['title'],
+                        status=task_data['status'],
+                        due_date=datetime.strptime(task_data['due_date'], '%Y-%m-%d').date(),
+                        created_date=datetime.strptime(task_data['created_date'], '%Y-%m-%d').date(),
+                        list_id=list_obj.id
+                    )
+                    db.session.add(task_obj)
+                    task_insert_count += 1
+
+            db.session.commit()
+
+        return {"lists_inserted": list_insert_count, "tasks_inserted": task_insert_count}, 200
+    except Exception as e:
+        logger.error(f"Error importing data: {str(e)}")
+        return None, 500
 
 def export_data_as_json():
-    lists = List.query.all()
-    data = []
+    try:
+        lists = List.query.all()
+        data = []
 
-    for list in lists:
-        tasks = Task.query.filter_by(list_id=list.id).all()
-        task_data = [{'id': task.id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'created_date': task.created_date.strftime('%Y-%m-%d')} for task in tasks]
+        for list in lists:
+            tasks = Task.query.filter_by(list_id=list.id).all()
+            task_data = [{'id': task.id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'created_date': task.created_date.strftime('%Y-%m-%d')} for task in tasks]
 
-        list_data = {
-            'id': list.id,
-            'title': list.title,
-            'description': list.description,
-            'created_date': list.created_date.strftime('%Y-%m-%d'),
-            'tasks': task_data
-        }
-        data.append(list_data)
+            list_data = {
+                'id': list.id,
+                'title': list.title,
+                'description': list.description,
+                'created_date': list.created_date.strftime('%Y-%m-%d'),
+                'tasks': task_data
+            }
+            data.append(list_data)
 
-    return data
+        return data, 200
+    except Exception as e:
+        logger.error(f"Error exporting data: {str(e)}")
+        return None, 500
+    
+# ROUTES
 
-# Web interface routes for lists
+# Lists for webinterface
 
 @app.route('/')
 def index():
-    lists = get_all_lists()
-    return render_template('index.html', lists=lists)
+    lists, status_code = get_all_lists()
+    if status_code == 200:
+        return render_template('index.html', lists=lists)
+    else:
+        flash('Error fetching lists', 'error')
+        return render_template('index.html')
 
 @app.route('/add', methods=['GET', 'POST'])
 def app_add_list():
     if request.method == 'POST':
         title = request.form['title']
         description = request.form['description']
-        create_list({'title': title, 'description': description})
-        return redirect(url_for('index'))
+        result, status_code = create_list({'title': title, 'description': description})
+        if status_code == 201:
+            flash('List created successfully', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Error creating list', 'error')
     return render_template('add_list.html')
 
 @app.route('/edit/<int:list_id>', methods=['GET', 'POST'])
 def app_edit_list(list_id):
-    list = get_list_by_id(list_id)
+    list_item, status_code = get_list_by_id(list_id)
+    if status_code != 200:
+        flash('List not found', 'error')
+        return redirect(url_for('index'))
+
     if request.method == 'POST':
         title = request.form['title']
         description = request.form['description']
-        update_list(list, {'title': title, 'description': description})
-        return redirect(url_for('index'))
-    return render_template('edit_list.html', list=list)
+        result, status_code = update_list(list_item, {'title': title, 'description': description})
+        if status_code == 200:
+            flash('List updated successfully', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Error updating list', 'error')
+
+    return render_template('edit_list.html', list=list_item)
 
 @app.route('/delete/<int:list_id>', methods=['GET'])
 def app_delete_list(list_id):
-    list = get_list_by_id(list_id)
-    if (delete_list(list)):
-        flash('List deleted', 'success')
+    list_item, status_code = get_list_by_id(list_id)
+    if status_code != 200:
+        flash('List not found', 'error')
+        return redirect(url_for('index'))
+
+    result, status_code = delete_list(list_item)
+    if status_code == 200:
+        flash('List deleted successfully', 'success')
     else:
-        flash('List could not be deleted', 'error')
+        flash('Error deleting list', 'error')
+
     return redirect(url_for('index'))
 
-# Web interface routes for tasks
+# Tasks for webinterface
 
 @app.route('/lists/<int:list_id>/tasks')
 def tasks_index(list_id):
-    list = get_list_by_id(list_id)
-    tasks = list.tasks
-    return render_template('tasks/index.html', list=list, tasks=tasks)
+    list_item, status_code = get_list_by_id(list_id)
+    if status_code != 200:
+        flash('List not found', 'error')
+        return redirect(url_for('index'))
+
+    tasks, status_code = get_all_tasks()
+    if status_code != 200:
+        flash('Error fetching tasks', 'error')
+        return render_template('tasks/index.html', list=list_item, tasks=[])
+
+    return render_template('tasks/index.html', list=list_item, tasks=tasks)
 
 @app.route('/lists/<int:list_id>/tasks/add', methods=['GET', 'POST'])
 def app_add_task(list_id):
-    list = get_list_by_id(list_id)
+    list_item, status_code = get_list_by_id(list_id)
+    if status_code != 200:
+        flash('List not found', 'error')
+        return redirect(url_for('index'))
+
     if request.method == 'POST':
         title = request.form['title']
         due_date = request.form['due_date']
-        create_task({'title': title, 'due_date': due_date, 'list_id': list.id})
-        return redirect(url_for('tasks_index', list_id=list.id))
-    return render_template('tasks/add_task.html', list=list)
+        result, status_code = create_task({'title': title, 'due_date': due_date, 'list_id': list_item.id})
+        if status_code == 201:
+            flash('Task created successfully', 'success')
+            return redirect(url_for('tasks_index', list_id=list_item.id))
+        else:
+            flash('Error creating task', 'error')
+
+    return render_template('tasks/add_task.html', list=list_item)
 
 @app.route('/list/<int:list_id>/tasks/edit/<int:task_id>', methods=['GET', 'POST'])
 def app_edit_task(list_id, task_id):
-    task = get_task_by_id(task_id)
-    list = get_list_by_id(list_id)
+    task, status_code = get_task_by_id(task_id)
+    if status_code != 200:
+        flash('Task not found', 'error')
+        return redirect(url_for('tasks_index', list_id=list_id))
+
+    list_item, status_code = get_list_by_id(list_id)
+    if status_code != 200:
+        flash('List not found', 'error')
+        return redirect(url_for('index'))
+
     if request.method == 'POST':
         title = request.form['title']
         due_date = request.form['due_date']
-        update_task(task, {'title': title, 'due_date': due_date})
-        return redirect(url_for('tasks_index', list_id=list_id))
-    return render_template('tasks/edit_task.html', task=task, list=list)
+        result, status_code = update_task(task, {'title': title, 'due_date': due_date})
+        if status_code == 200:
+            flash('Task updated successfully', 'success')
+            return redirect(url_for('tasks_index', list_id=list_id))
+        else:
+            flash('Error updating task', 'error')
+
+    return render_template('tasks/edit_task.html', task=task, list=list_item)
 
 @app.route('/list/<int:list_id>/tasks/<int:task_id>/complete', methods=['GET'])
 def app_complete_task(list_id, task_id):
-    task = get_task_by_id(task_id)
-    if (complete_task(task)):
-        flash(f'Task {task.title} completed', 'success')
+    task, status_code = get_task_by_id(task_id)
+    if status_code != 200:
+        flash('Task not found', 'error')
+        return redirect(url_for('tasks_index', list_id=list_id))
+
+    result, status_code = complete_task(task)
+    if status_code == 200:
+        flash(f'Task {task.title} completed successfully', 'success')
     else:
-        flash('Something went wrong', 'error')
+        flash('Error completing task', 'error')
+
     return redirect(url_for('tasks_index', list_id=list_id))
-        
 
 @app.route('/list/<int:list_id>/tasks/delete/<int:task_id>', methods=['GET'])
 def app_delete_task(list_id, task_id):
-    task = get_task_by_id(task_id)
-    delete_task(task)
+    task, status_code = get_task_by_id(task_id)
+    if status_code != 200:
+        flash('Task not found', 'error')
+        return redirect(url_for('tasks_index', list_id=list_id))
+
+    result, status_code = delete_task(task)
+    if status_code == 200:
+        flash('Task deleted successfully', 'success')
+    else:
+        flash('Error deleting task', 'error')
+
     return redirect(url_for('tasks_index', list_id=list_id))
 
-# Web Interface route for backup
+# Backup for webinterface
 
 @app.route('/backup', methods=['GET', 'POST'])
 def backup():
+    # Implement backup functionality here, if needed
     return render_template('backup.html')
 
-# REST API Endpoints for lists
+# List for API
+
 @app.route('/api/lists', methods=['GET'])
 def api_get_lists():
-    lists = get_all_lists()
-    lists_list = [{'id': list.id, 'title': list.title, 'description': list.description, 'created_date': list.created_date} for list in lists]
-    return jsonify(lists_list), 200
+    try:
+        lists, status_code = get_all_lists()
+        if status_code == 200:
+            lists_list = [{'id': list.id, 'title': list.title, 'description': list.description, 'created_date': list.created_date.strftime('%Y-%m-%d')} for list in lists]
+            return jsonify(lists_list), 200
+        else:
+            return '', status_code
+    except Exception:
+        return '', 500
 
 @app.route('/api/lists/<int:list_id>', methods=['GET'])
 def api_get_list(list_id):
-    list = get_list_by_id(list_id)
-    list_data = {'id': list.id, 'title': list.title, 'description': list.description, 'created_date': list.created_date.strftime('%Y-%m-%d')}
-    return jsonify(list_data), 200
+    try:
+        list_item, status_code = get_list_by_id(list_id)
+        if status_code == 200:
+            list_data = {'id': list_item.id, 'title': list_item.title, 'description': list_item.description, 'created_date': list_item.created_date.strftime('%Y-%m-%d')}
+            return jsonify(list_data), 200
+        else:
+            return '', status_code
+    except Exception:
+        return '', 500
 
 @app.route('/api/lists', methods=['POST'])
 def api_post_list():
-    data = request.get_json()
-    new_list = create_list(data)
-    return jsonify({'id': new_list.id, 'title': new_list.title, 'description': new_list.description, 'created_date': new_list.created_date.strftime('%Y-%m-%d')}), 201
+    try:
+        data = request.get_json()
+        new_list, status_code = create_list(data)
+        if status_code == 201:
+            return jsonify({'id': new_list.id, 'title': new_list.title, 'description': new_list.description, 'created_date': new_list.created_date.strftime('%Y-%m-%d')}), 201
+        else:
+            return '', status_code
+    except Exception:
+        return '', 500
 
 @app.route('/api/lists/<int:list_id>', methods=['PUT'])
 def api_put_list(list_id):
-    list = get_list_by_id(list_id)
-    data = request.get_json()
-    updated_list = update_list(list, data)
-    return jsonify({'id': updated_list.id, 'title': updated_list.title, 'description': updated_list.description, 'created_date': updated_list.created_date.strftime('%Y-%m-%d')}), 200
+    try:
+        list_item, status_code = get_list_by_id(list_id)
+        if status_code != 200:
+            return '', status_code
+
+        data = request.get_json()
+        updated_list, status_code = update_list(list_item, data)
+        if status_code == 200:
+            return jsonify({'id': updated_list.id, 'title': updated_list.title, 'description': updated_list.description, 'created_date': updated_list.created_date.strftime('%Y-%m-%d')}), 200
+        else:
+            return '', status_code
+    except Exception:
+        return '', 500
 
 @app.route('/api/lists/<int:list_id>', methods=['DELETE'])
 def api_delete_list(list_id):
-    list = get_list_by_id(list_id)
-    delete_list(list)
-    return jsonify(""), 204
+    try:
+        list_item, status_code = get_list_by_id(list_id)
+        if status_code != 200:
+            return '', status_code
 
-# REST API Endpoints for tasks
+        status_code = delete_list(list_item)
+        return '', status_code
+    except Exception:
+        return '', 500
+
+# Tasks for API
+
 @app.route('/api/tasks', methods=['GET'])
 def api_get_tasks():
-    tasks = get_all_tasks()
-    tasks_list = [{'id': task.id, 'list_id': task.list_id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'created_date': task.created_date.strftime('%Y-%m-%d')} for task in tasks]
-    return jsonify(tasks_list), 200
+    try:
+        tasks, status_code = get_all_tasks()
+        if status_code == 200:
+            tasks_list = [{'id': task.id, 'list_id': task.list_id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'created_date': task.created_date.strftime('%Y-%m-%d')} for task in tasks]
+            return jsonify(tasks_list), 200
+        else:
+            return '', status_code
+    except Exception:
+        return '', 500
 
 @app.route('/api/tasks/<int:task_id>', methods=['GET'])
 def api_get_task(task_id):
-    task = get_task_by_id(task_id)
-    task_data = {'id': task.id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'created_date': task.created_date.strftime('%Y-%m-%d')}
-    if(task_data):
-        return jsonify(task_data), 200
-    else:
-        return abort(204)
+    try:
+        task, status_code = get_task_by_id(task_id)
+        if status_code == 200:
+            task_data = {'id': task.id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'created_date': task.created_date.strftime('%Y-%m-%d')}
+            return jsonify(task_data), 200
+        else:
+            return '', status_code
+    except Exception:
+        return '', 500
 
 @app.route('/api/tasks', methods=['POST'])
 def api_post_task():
-    data = request.get_json()
-    new_task = create_task(data)
-    return jsonify({'id': new_task.id, 'title': new_task.title, 'status': new_task.status, 'due_date': new_task.due_date.strftime('%Y-%m-%d'), 'created_date': new_task.created_date.strftime('%Y-%m-%d')}), 201
+    try:
+        data = request.get_json()
+        new_task, status_code = create_task(data)
+        if status_code == 201:
+            return jsonify({'id': new_task.id, 'title': new_task.title, 'status': new_task.status, 'due_date': new_task.due_date.strftime('%Y-%m-%d'), 'created_date': new_task.created_date.strftime('%Y-%m-%d')}), 201
+        else:
+            return '', status_code
+    except Exception:
+        return '', 500
 
 @app.route('/api/tasks/<int:task_id>', methods=['PUT'])
 def api_put_task(task_id):
-    task = get_task_by_id(task_id)
-    data = request.get_json()
-    updated_task = update_task(task, data)
-    return jsonify({'id': updated_task.id, 'title': updated_task.title, 'status': updated_task.status, 'due_date': updated_task.due_date.strftime('%Y-%m-%d'), 'created_date': updated_task.created_date.strftime('%Y-%m-%d')}), 200
+    try:
+        task, status_code = get_task_by_id(task_id)
+        if status_code != 200:
+            return '', status_code
+
+        data = request.get_json()
+        updated_task, status_code = update_task(task, data)
+        if status_code == 200:
+            return jsonify({'id': updated_task.id, 'title': updated_task.title, 'status': updated_task.status, 'due_date': updated_task.due_date.strftime('%Y-%m-%d'), 'created_date': updated_task.created_date.strftime('%Y-%m-%d')}), 200
+        else:
+            return '', status_code
+    except Exception:
+        return '', 500
 
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def api_delete_task(task_id):
-    task = get_task_by_id(task_id)
-    delete_task(task)
-    return jsonify(""), 204
+    try:
+        task, status_code = get_task_by_id(task_id)
+        if status_code != 200:
+            return '', status_code
 
-# REST API Endpoints for import & export
+        status_code = delete_task(task)
+        return '', status_code
+    except Exception:
+        return '', 500
+
+# Import & Export for API
 
 @app.route('/api/import', methods=['POST'])
 def api_import_data():
-    data = request.get_json()
-    result = import_data_from_json(data)
-    return jsonify({
-        "message": "Data imported successfully!",
-        "lists_inserted": result["lists_inserted"],
-        "tasks_inserted": result["tasks_inserted"]
-    }), 201
+    try:
+        data = request.get_json()
+        result = import_data_from_json(data)
+        return '', 201
+    except Exception:
+        return '', 500
 
 @app.route('/api/export', methods=['GET'])
 def api_export_data():
-    data = export_data_as_json()
-    return jsonify(data), 200
+    try:
+        data = export_data_as_json()
+        return jsonify(data), 200
+    except Exception:
+        return '', 500
 
 if __name__ == '__main__':
     app.run(debug=IS_LOGGING_DEBUG)

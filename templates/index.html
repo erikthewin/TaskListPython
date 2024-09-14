@@ -6,15 +6,6 @@
 {% block content %}
     <h1 class="mb-4">Lists</h1>
     <a class="btn btn-primary btn-sm" href="{{ url_for('app_add_list') }}">Add List</a>
-    {% with messages = get_flashed_messages(with_categories=True) %}
-        {% if messages %}
-            <ul class="flash-messages">
-                {% for category, message in messages %}
-                    <li class="flash {{ category }}">{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
     <table class="table table-bordered">
         <thead>
             <tr>
