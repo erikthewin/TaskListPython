@@ -1,5 +1,6 @@
 from flask import Flask, render_template, redirect, url_for, request, jsonify, abort, flash
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 from forms import TaskForm, ListForm
 from datetime import datetime
 import os
@@ -8,6 +9,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
 db = SQLAlchemy(app)
+
+# Allow CORS only from a specific domain (e.g., localhost:3000)
+CORS(app)
 
 from models import Task, List
 
@@ -49,6 +53,13 @@ def delete_list(list):
 
 def get_all_tasks():
     return Task.query.all()
+
+def get_tasks_by_list_id(list_id):
+    try: 
+        tasks = Task.query.filter_by(list_id=list_id).all()
+        return tasks
+    except:
+        return None
 
 def get_task_by_id(task_id):
     task = Task.query.get(task_id)
@@ -161,7 +172,13 @@ def app_delete_task(list_id, task_id):
 @app.route('/api/tasks', methods=['GET'])
 def api_get_tasks():
     tasks = get_all_tasks()
-    tasks_list = [{'id': task.id, 'title': task.title, 'due_date': task.due_date.strftime('%Y-%m-%d')} for task in tasks]
+    tasks_list = [{'id': task.id, 'title': task.title, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'status': task.status} for task in tasks]
+    return jsonify(tasks_list)
+
+@app.route('/api/tasks_by_list_id/<int:list_id>', methods=['GET'])
+def api_get_tasks_by_list_id(list_id):
+    tasks = get_tasks_by_list_id(list_id)
+    tasks_list = [{'id': task.id, 'title': task.title, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'status': task.status} for task in tasks]
     return jsonify(tasks_list)
 
 @app.route('/api/tasks/<int:task_id>', methods=['GET'])
