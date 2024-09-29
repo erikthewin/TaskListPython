@@ -1,3 +1,4 @@
 Flask
 Flask-WTF
 Flask-SQLAlchemy
+flask-cors

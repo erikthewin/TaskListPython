@@ -2,6 +2,7 @@ import logging
 from flask import Flask, render_template, redirect, url_for, request, jsonify, abort, flash
 from werkzeug.exceptions import HTTPException, NotFound, BadRequest
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 from datetime import datetime
 import os
 
@@ -10,6 +11,12 @@ app.json.sort_keys = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key')  # Secret key for flash sessions
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
 db = SQLAlchemy(app)
+
+# Allow CORS only from a specific domain (e.g., localhost:3000)
+CORS(app)
+
+# Allow CORS only from a specific domain (e.g., localhost:3000)
+CORS(app)
 
 ENABLE_FILE_LOGGING = os.environ.get('ENABLE_FILE_LOGGING')
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')  # Default to info
@@ -121,6 +128,20 @@ def get_all_tasks():
         logger.error(f"Error getting tasks: {str(e)}")
         return None, 500
 
+def get_tasks_by_list_id(list_id):
+    try: 
+        tasks = Task.query.filter_by(list_id=list_id).all()
+        return tasks
+    except:
+        return None
+
+def get_tasks_by_list_id(list_id):
+    try: 
+        tasks = Task.query.filter_by(list_id=list_id).all()
+        return tasks
+    except:
+        return None
+
 def get_task_by_id(task_id):
     if not task_id:
         logger.warning("Bad request: missing task_id")
@@ -181,6 +202,16 @@ def complete_task(task):
     except Exception as e:
         logger.error(f"Error completing task {task.id}: {str(e)}")
         return None, 500
+
+def uncomplete_task(task):
+    task.status = False
+    db.sesson.commit()
+    return task
+
+def uncomplete_task(task):
+    task.status = False
+    db.sesson.commit()
+    return task
 
 def delete_task(task):
     if not task:
@@ -398,6 +429,15 @@ def app_complete_task(list_id, task_id):
 
     return redirect(url_for('tasks_index', list_id=list_id))
 
+@app.route('/list/<int:list_id>/tasks/<int:task_id>/uncomplete', methods=['GET'])
+def app_uncomplete_task(list_id, task_id):
+    task = get_task_by_id(task_id)
+    if (uncomplete_task(task)):
+        flash(f'Task {task.title} uncompleted', 'success')
+    else:
+        flash('Something went wrong', 'error')
+    return redirect(url_for('tasks_index', list_id=list_id))
+
 @app.route('/list/<int:list_id>/tasks/delete/<int:task_id>', methods=['GET'])
 def app_delete_task(list_id, task_id):
     task, status_code = get_task_by_id(task_id)
@@ -488,13 +528,20 @@ def api_delete_list(list_id):
 
 # Tasks for API
 
+    list = get_list_by_id(list_id)
+    if delete_list(list):
+        return jsonify(""), 204
+    else: 
+        return jsonify("List must be empty before deleting it"), 200
+
+# REST API Endpoints for tasks
 @app.route('/api/tasks', methods=['GET'])
 def api_get_tasks():
     try:
         tasks, status_code = get_all_tasks()
         if status_code == 200:
-            tasks_list = [{'id': task.id, 'list_id': task.list_id, 'title': task.title, 'status': task.status, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'created_date': task.created_date.strftime('%Y-%m-%d')} for task in tasks]
-            return jsonify(tasks_list), 200
+            tasks_list = [{'id': task.id, 'title': task.title, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'status': task.status} for task in tasks]
+            return jsonify(tasks_list)
         else:
             return '', status_code
     except Exception:
@@ -511,6 +558,12 @@ def api_get_task(task_id):
             return '', status_code
     except Exception:
         return '', 500
+    
+@app.route('/api/tasks_by_list_id/<int:list_id>', methods=['GET'])
+def api_get_tasks_by_list_id(list_id):
+    tasks = get_tasks_by_list_id(list_id)
+    tasks_list = [{'id': task.id, 'title': task.title, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'status': task.status} for task in tasks]
+    return jsonify(tasks_list)
 
 @app.route('/api/tasks', methods=['POST'])
 def api_post_task():
@@ -534,11 +587,14 @@ def api_put_task(task_id):
         data = request.get_json()
         updated_task, status_code = update_task(task, data)
         if status_code == 200:
-            return jsonify({'id': updated_task.id, 'title': updated_task.title, 'status': updated_task.status, 'due_date': updated_task.due_date.strftime('%Y-%m-%d'), 'created_date': updated_task.created_date.strftime('%Y-%m-%d')}), 200
+            if updated_task != None:
+        return jsonify({'id': updated_task.id, 'title': updated_task.title, 'due_date': updated_task.due_date.strftime('%Y-%m-%d'), 'created_date': updated_task.created_date.strftime('%Y-%m-%d')}), 200
         else:
             return '', status_code
     except Exception:
         return '', 500
+    else: 
+        return abort(400)
 
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def api_delete_task(task_id):

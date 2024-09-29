@@ -4,7 +4,7 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     created_date = db.Column(db.Date, nullable=False)
-    status = db.Column(db.Boolean, default=False, nullable=False) 
+    status = db.Column(db.Boolean, default=False, nullable=False)
     due_date = db.Column(db.Date, nullable=False)
     
     # Foreign key to the List model
