@@ -280,14 +280,16 @@ def api_put_list(list_id):
 @app.route('/api/lists/<int:list_id>', methods=['DELETE'])
 def api_delete_list(list_id):
     list = get_list_by_id(list_id)
-    delete_list(list)
-    return jsonify(""), 204
+    if delete_list(list):
+        return jsonify(""), 204
+    else: 
+        return jsonify("List must be empty before deleting it"), 200
 
 # REST API Endpoints for tasks
 @app.route('/api/tasks', methods=['GET'])
 def api_get_tasks():
     tasks = get_all_tasks()
-    tasks_list = [{'id': task.id, 'title': task.title, 'due_date': task.due_date.strftime('%Y-%m-%d')} for task in tasks]
+    tasks_list = [{'id': task.id, 'title': task.title, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'status': task.status} for task in tasks]
     return jsonify(tasks_list)
 
 @app.route('/api/tasks/<int:task_id>', methods=['GET'])
@@ -298,6 +300,12 @@ def api_get_task(task_id):
         return jsonify(task_data), 200
     else:
         return abort(204)
+    
+@app.route('/api/tasks_by_list_id/<int:list_id>', methods=['GET'])
+def api_get_tasks_by_list_id(list_id):
+    tasks = get_tasks_by_list_id(list_id)
+    tasks_list = [{'id': task.id, 'title': task.title, 'due_date': task.due_date.strftime('%Y-%m-%d'), 'status': task.status} for task in tasks]
+    return jsonify(tasks_list)
 
 @app.route('/api/tasks', methods=['POST'])
 def api_post_task():
@@ -310,7 +318,10 @@ def api_put_task(task_id):
     task = get_task_by_id(task_id)
     data = request.get_json()
     updated_task = update_task(task, data)
-    return jsonify({'id': updated_task.id, 'title': updated_task.title, 'status': updated_task.status, 'due_date': updated_task.due_date.strftime('%Y-%m-%d'), 'created_date': updated_task.created_date.strftime('%Y-%m-%d')}), 200
+    if updated_task != None:
+        return jsonify({'id': updated_task.id, 'title': updated_task.title, 'due_date': updated_task.due_date.strftime('%Y-%m-%d'), 'created_date': updated_task.created_date.strftime('%Y-%m-%d')}), 200
+    else: 
+        return abort(400)
 
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def api_delete_task(task_id):
