@@ -3,7 +3,7 @@
 from app import app, db
 from models import Task, List  # Import both models
 from sqlalchemy.exc import OperationalError
-from datetime import date
+from datetime import date, timedelta
 
 def is_db_initialized():
     # Check if any rows exist in the List table

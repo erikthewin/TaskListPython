@@ -98,6 +98,11 @@ def complete_task(task):
     db.session.commit()
     return task
 
+def uncomplete_task(task):
+    task.status = False
+    db.sesson.commit()
+    return task
+
 def delete_task(task):
     db.session.delete(task)
     db.session.commit()
@@ -237,7 +242,15 @@ def app_complete_task(list_id, task_id):
     else:
         flash('Something went wrong', 'error')
     return redirect(url_for('tasks_index', list_id=list_id))
-        
+
+@app.route('/list/<int:list_id>/tasks/<int:task_id>/uncomplete', methods=['GET'])
+def app_uncomplete_task(list_id, task_id):
+    task = get_task_by_id(task_id)
+    if (uncomplete_task(task)):
+        flash(f'Task {task.title} uncompleted', 'success')
+    else:
+        flash('Something went wrong', 'error')
+    return redirect(url_for('tasks_index', list_id=list_id))
 
 @app.route('/list/<int:list_id>/tasks/delete/<int:task_id>', methods=['GET'])
 def app_delete_task(list_id, task_id):
