@@ -528,13 +528,6 @@ def api_delete_list(list_id):
 
 # Tasks for API
 
-    list = get_list_by_id(list_id)
-    if delete_list(list):
-        return jsonify(""), 204
-    else: 
-        return jsonify("List must be empty before deleting it"), 200
-
-# REST API Endpoints for tasks
 @app.route('/api/tasks', methods=['GET'])
 def api_get_tasks():
     try:
@@ -583,19 +576,15 @@ def api_put_task(task_id):
         task, status_code = get_task_by_id(task_id)
         if status_code != 200:
             return '', status_code
-
-        data = request.get_json()
-        updated_task, status_code = update_task(task, data)
-        if status_code == 200:
+        else: 
+            data = request.get_json()
+            updated_task, status_code = update_task(task, data)
             if updated_task != None:
-        return jsonify({'id': updated_task.id, 'title': updated_task.title, 'due_date': updated_task.due_date.strftime('%Y-%m-%d'), 'created_date': updated_task.created_date.strftime('%Y-%m-%d')}), 200
-        else:
+                return jsonify({'id': updated_task.id, 'title': updated_task.title, 'due_date': updated_task.due_date.strftime('%Y-%m-%d'), 'created_date': updated_task.created_date.strftime('%Y-%m-%d')}), 200
             return '', status_code
     except Exception:
         return '', 500
-    else: 
-        return abort(400)
-
+    
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def api_delete_task(task_id):
     try:
